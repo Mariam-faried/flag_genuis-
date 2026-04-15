@@ -1,0 +1,22 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="flagGlow" x1="24" y1="24" x2="102" y2="104" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#DDF0FF" stop-opacity="0.44"/>
+      <stop offset="1" stop-color="#A4CBFF" stop-opacity="0.16"/>
+    </linearGradient>
+    <linearGradient id="flagFill" x1="69" y1="36" x2="97" y2="56" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFD439"/>
+      <stop offset="1" stop-color="#FF8C36"/>
+    </linearGradient>
+  </defs>
+  <circle cx="64" cy="64" r="46" fill="url(#flagGlow)" stroke="#EAF4FF" stroke-opacity="0.55" stroke-width="3.2"/>
+  <ellipse cx="64" cy="64" rx="30" ry="46" stroke="#EAF4FF" stroke-opacity="0.5" stroke-width="2.2"/>
+  <ellipse cx="64" cy="64" rx="13" ry="46" stroke="#EAF4FF" stroke-opacity="0.45" stroke-width="2.2"/>
+  <path d="M18 64H110" stroke="#EAF4FF" stroke-opacity="0.5" stroke-width="2.2"/>
+  <path d="M23 48H105" stroke="#EAF4FF" stroke-opacity="0.34" stroke-width="2.2"/>
+  <path d="M23 80H105" stroke="#EAF4FF" stroke-opacity="0.34" stroke-width="2.2"/>
+  <rect x="67" y="27" width="5.5" height="55" rx="2.75" fill="#F5FAFF"/>
+  <path d="M72 33.5L96 38.3C98.1 38.7 99.4 40.8 98.8 42.8L95.5 53.7C95 55.3 93.4 56.3 91.8 56L72 52V33.5Z" fill="url(#flagFill)"/>
+  <circle cx="88" cy="29" r="3" fill="#FFD439" fill-opacity="0.85"/>
+  <circle cx="99" cy="46" r="2.4" fill="#EAF4FF" fill-opacity="0.72"/>
+</svg>

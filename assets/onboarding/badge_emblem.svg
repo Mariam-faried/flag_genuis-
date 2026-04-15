@@ -1,0 +1,17 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="badgeCore" x1="35" y1="26" x2="95" y2="92" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#DDFBFF"/>
+      <stop offset="1" stop-color="#9DD8FF"/>
+    </linearGradient>
+    <linearGradient id="ribbon" x1="49" y1="72" x2="79" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFD439"/>
+      <stop offset="1" stop-color="#FF8C36"/>
+    </linearGradient>
+  </defs>
+  <path d="M64 20L94 36V68L64 86L34 68V36L64 20Z" fill="url(#badgeCore)" fill-opacity="0.92" stroke="#EAFBFF" stroke-opacity="0.72" stroke-width="3"/>
+  <circle cx="64" cy="53" r="18" fill="#1A567D" fill-opacity="0.45" stroke="#EAFBFF" stroke-opacity="0.6" stroke-width="2.4"/>
+  <path d="M64 40L67.8 47.4L76 48.6L70 54.4L71.4 62.5L64 58.7L56.6 62.5L58 54.4L52 48.6L60.2 47.4L64 40Z" fill="#F7FCFF"/>
+  <path d="M53.5 73H74.5V108L64 101.5L53.5 108V73Z" fill="url(#ribbon)"/>
+  <circle cx="64" cy="64" r="41" stroke="#D9FBFF" stroke-opacity="0.2" stroke-width="2.4"/>
+</svg>

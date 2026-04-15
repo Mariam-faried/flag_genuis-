@@ -1,0 +1,140 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function hasOnlyAllowedUserFields() {
+      return request.resource.data.keys().hasOnly([
+        'displayName',
+        'email',
+        'photoUrl',
+        'isAnonymous',
+        'gamesPlayed',
+        'lifetimeScore',
+        'bestScore',
+        'dailyChallengeStreak',
+        'earnedBadges',
+        'lastDailyChallengeAt',
+        'createdAt',
+        'updatedAt',
+      ]);
+    }
+
+    function hasValidIdentityFields() {
+      return request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 80
+        && (
+          !('email' in request.resource.data)
+          || request.resource.data.email == null
+          || request.resource.data.email is string
+        )
+        && (
+          !('photoUrl' in request.resource.data)
+          || request.resource.data.photoUrl == null
+          || request.resource.data.photoUrl is string
+        )
+        && request.resource.data.isAnonymous is bool;
+    }
+
+    function hasValidProgressFields() {
+      return request.resource.data.gamesPlayed is int
+        && request.resource.data.gamesPlayed >= 0
+        && request.resource.data.gamesPlayed <= 1000000
+        && request.resource.data.lifetimeScore is int
+        && request.resource.data.lifetimeScore >= 0
+        && request.resource.data.lifetimeScore <= 100000000
+        && request.resource.data.bestScore is int
+        && request.resource.data.bestScore >= 0
+        && request.resource.data.bestScore <= request.resource.data.lifetimeScore
+        && request.resource.data.dailyChallengeStreak is int
+        && request.resource.data.dailyChallengeStreak >= 0
+        && request.resource.data.dailyChallengeStreak <= 10000
+        && request.resource.data.earnedBadges is list
+        && request.resource.data.earnedBadges.size() <= 128;
+    }
+
+    function hasValidUserTimestampFields() {
+      return request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp
+        && (
+          !('lastDailyChallengeAt' in request.resource.data)
+          || request.resource.data.lastDailyChallengeAt == null
+          || request.resource.data.lastDailyChallengeAt is timestamp
+        );
+    }
+
+    function isValidUserDocument() {
+      return hasOnlyAllowedUserFields()
+        && hasValidIdentityFields()
+        && hasValidProgressFields()
+        && hasValidUserTimestampFields();
+    }
+
+    function hasOnlyAllowedLeaderboardFields() {
+      return request.resource.data.keys().hasOnly([
+        'displayName',
+        'photoUrl',
+        'bestScore',
+        'gamesPlayed',
+        'updatedAt',
+      ]);
+    }
+
+    function hasValidLeaderboardFields() {
+      return request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 80
+        && (
+          !('photoUrl' in request.resource.data)
+          || request.resource.data.photoUrl == null
+          || request.resource.data.photoUrl is string
+        )
+        && request.resource.data.bestScore is int
+        && request.resource.data.bestScore >= 0
+        && request.resource.data.bestScore <= 1000
+        && request.resource.data.gamesPlayed is int
+        && request.resource.data.gamesPlayed >= 0
+        && request.resource.data.gamesPlayed <= 1000000
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function isMonotonicLeaderboardUpdate(entryId) {
+      return !exists(/databases/$(database)/documents/leaderboard/$(entryId))
+        || (
+          request.resource.data.bestScore >= resource.data.bestScore
+          && request.resource.data.gamesPlayed >= resource.data.gamesPlayed
+        );
+    }
+
+    function isValidLeaderboardDocument(entryId) {
+      return hasOnlyAllowedLeaderboardFields()
+        && hasValidLeaderboardFields()
+        && isMonotonicLeaderboardUpdate(entryId);
+    }
+
+    match /users/{uid} {
+      allow get: if isOwner(uid);
+      allow list: if false;
+      allow create, update: if isOwner(uid) && isValidUserDocument();
+      allow delete: if false;
+    }
+
+    match /leaderboard/{entryId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isOwner(entryId)
+        && isValidLeaderboardDocument(entryId);
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

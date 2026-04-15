@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "679544215240",
+    "project_id": "flag-genius-6f61f",
+    "storage_bucket": "flag-genius-6f61f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:679544215240:android:2592d8268a816f85e577fd",
+        "android_client_info": {
+          "package_name": "com.flaggenius.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "679544215240-u6c5dlcjssedubaq4696jdo8295l1cbv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.flaggenius.app",
+            "certificate_hash": "91ceb704fb626decfa632f4eb81f04a185147410"
+          }
+        },
+        {
+          "client_id": "679544215240-3dbab2r6e2islv5n01pb49ot2o7nn0qs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCodxuW1xufyL_XXimmboFNaCS57B84-so"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "679544215240-3dbab2r6e2islv5n01pb49ot2o7nn0qs.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "679544215240-6lgbfd24fcgoha4b605mpc519o0uqs6c.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.flagGenuis"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

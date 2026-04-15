@@ -1,0 +1,19 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="cupBody" x1="43" y1="30" x2="85" y2="74" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7FBFF"/>
+      <stop offset="1" stop-color="#D7E8FF"/>
+    </linearGradient>
+    <linearGradient id="cupGold" x1="44" y1="82" x2="86" y2="104" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFD439"/>
+      <stop offset="1" stop-color="#FF8C36"/>
+    </linearGradient>
+  </defs>
+  <path d="M44 30H84V50C84 63.3 74.1 74 64 74C53.9 74 44 63.3 44 50V30Z" fill="url(#cupBody)" stroke="#EBF4FF" stroke-opacity="0.72" stroke-width="3"/>
+  <path d="M44 38H37C31.5 38 27 42.5 27 48C27 54.9 33.2 61 40.3 61H45" stroke="#EAF4FF" stroke-opacity="0.62" stroke-width="4" stroke-linecap="round"/>
+  <path d="M84 38H91C96.5 38 101 42.5 101 48C101 54.9 94.8 61 87.7 61H83" stroke="#EAF4FF" stroke-opacity="0.62" stroke-width="4" stroke-linecap="round"/>
+  <rect x="58.5" y="74" width="11" height="11" rx="3" fill="#EAF4FF" fill-opacity="0.9"/>
+  <rect x="44" y="85" width="40" height="11" rx="5.5" fill="url(#cupGold)"/>
+  <path d="M64 45L67.9 52.6L76.3 53.9L70.2 59.8L71.6 68.1L64 64.1L56.4 68.1L57.8 59.8L51.7 53.9L60.1 52.6L64 45Z" fill="#FFD439"/>
+  <circle cx="64" cy="64" r="39" stroke="#EAF4FF" stroke-opacity="0.23" stroke-width="2.4"/>
+</svg>
