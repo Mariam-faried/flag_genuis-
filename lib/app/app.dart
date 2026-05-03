@@ -12,15 +12,16 @@ import '../screens/mode_select_screen.dart';
 import '../screens/onboarding_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/quiz_screen.dart';
-import '../screens/result_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/splash_screen.dart';
 import '../screens/summary_screen.dart';
 import '../services/api_service.dart';
+import '../services/analytics_service.dart';
 import '../services/auth_service.dart';
 import '../services/daily_challenge_service.dart';
 import '../services/feedback_service.dart';
 import '../services/firestore_service.dart';
+import '../services/remote_config_service.dart';
 import 'app_routes.dart';
 
 class FlagGeniusApp extends StatelessWidget {
@@ -31,6 +32,8 @@ class FlagGeniusApp extends StatelessWidget {
   final FirestoreService _firestoreService = FirestoreService();
   final FeedbackService _feedbackService = FeedbackService();
   final DailyChallengeService _dailyChallengeService = DailyChallengeService();
+  final AnalyticsService _analyticsService = AnalyticsService();
+  final RemoteConfigService _remoteConfigService = RemoteConfigService();
 
   @override
   Widget build(BuildContext context) {
@@ -40,10 +43,13 @@ class FlagGeniusApp extends StatelessWidget {
         Provider<FirestoreService>.value(value: _firestoreService),
         Provider<FeedbackService>.value(value: _feedbackService),
         Provider<DailyChallengeService>.value(value: _dailyChallengeService),
+        Provider<AnalyticsService>.value(value: _analyticsService),
+        Provider<RemoteConfigService>.value(value: _remoteConfigService),
         ChangeNotifierProvider<AuthProvider>(
           create: (_) => AuthProvider(
             authService: _authService,
             firestoreService: _firestoreService,
+            analyticsService: _analyticsService,
           ),
         ),
         ChangeNotifierProvider<QuizProvider>(
@@ -53,6 +59,8 @@ class FlagGeniusApp extends StatelessWidget {
             firestoreService: _firestoreService,
             feedbackService: _feedbackService,
             dailyChallengeService: _dailyChallengeService,
+            analyticsService: _analyticsService,
+            remoteConfigService: _remoteConfigService,
           ),
         ),
       ],
@@ -68,7 +76,6 @@ class FlagGeniusApp extends StatelessWidget {
           AppRoutes.home: (_) => const HomeScreen(),
           AppRoutes.modeSelect: (_) => const ModeSelectScreen(),
           AppRoutes.quiz: (_) => const QuizScreen(),
-          AppRoutes.result: (_) => const ResultScreen(),
           AppRoutes.summary: (_) => const SummaryScreen(),
           AppRoutes.leaderboard: (_) => const LeaderboardScreen(),
           AppRoutes.profile: (_) => const ProfileScreen(),

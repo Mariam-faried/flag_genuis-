@@ -86,10 +86,30 @@ class AppTheme {
   static const Color homeCardBorder = Color(0xFF466190);
   static const Color homeTextureLine = Color(0x17D5E6FF);
   static const Color homeTextureAccent = Color(0x127FB4FF);
+  static const Color profileGlass = Color(0x591F3A67);
+  static const Color profileGlassSoft = Color(0x4D162A4C);
+  static const Color profileHeroBorder = Color(0xFF3E5F9A);
+  static const Color profileGlow = Color(0x733E7BFF);
+  static const Color profileTrack = Color(0x66304267);
+  static const Color profileXpFill = Color(0xFF69C2FF);
+  static const Color rarityCommon = Color(0xFF6B7CA9);
+  static const Color rarityRare = Color(0xFF3AA7FF);
+  static const Color rarityEpic = Color(0xFF9E6BFF);
+  static const Color rarityLegendary = Color(0xFFFFD439);
   static const LinearGradient profileHeroGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [Color(0xFF0F2C57), Color(0xFF0E3A57), Color(0xFF0D2945)],
+  );
+  static const LinearGradient profilePassportGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xCC163A6F), Color(0xCC0F2E59), Color(0xCC102447)],
+  );
+  static const LinearGradient profileFeaturedBadgeGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF31235C), Color(0xFF1F2D56), Color(0xFF16354B)],
   );
   static const LinearGradient leaderboardHeroGradient = LinearGradient(
     begin: Alignment.topLeft,
@@ -97,6 +117,16 @@ class AppTheme {
     colors: [Color(0xFF321661), Color(0xFF3A1471), Color(0xFF27124F)],
   );
   static const Color leaderboardHeroBorder = Color(0xFF57318C);
+  static const LinearGradient summaryHeroGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF193C78), Color(0xFF122C61), Color(0xFF13244B)],
+  );
+  static const Color summaryHeroBorder = Color(0xFF4E6EA8);
+  static const Color summaryChipBackground = Color(0x66213B6A);
+  static const Color summaryChipBorder = Color(0xFF5D7EBA);
+  static const Color summaryAtmosphereBlue = Color(0x3D2563EB);
+  static const Color summaryAtmosphereGold = Color(0x21FFD439);
   static const LinearGradient flagQuizGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,

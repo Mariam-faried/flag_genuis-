@@ -12,7 +12,7 @@ import '../providers/quiz_provider.dart';
 
 class ModeSelectScreen extends StatefulWidget {
   const ModeSelectScreen({super.key});
-
+ 
   @override
   State<ModeSelectScreen> createState() => _ModeSelectScreenState();
 }

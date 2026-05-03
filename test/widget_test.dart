@@ -7,7 +7,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: AnswerButton(label: 'Egypt', onTap: () {}),
+          body: AnswerButton(optionIndex: 0, label: 'Egypt', onTap: () {}),
         ),
       ),
     );

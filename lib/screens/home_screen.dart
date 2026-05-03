@@ -27,7 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onNavTapped(int index) {
     if (index == _homeTab) {
       return;
-    }
+    }               
 
     final route = switch (index) {
       1 => AppRoutes.leaderboard,
@@ -45,9 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final hasCompletedDailyChallenge =
         !quizProvider.canCompleteDailyChallengeToday;
     final displayName = authProvider.displayName.trim();
-    final firstName = displayName.isEmpty
-        ? 'Explorer'
-        : displayName.split(' ').first;
+    final firstName = _homeGreetingName(displayName);
 
     final modeCards = <_ModeCardData>[
       _ModeCardData(
@@ -336,6 +334,20 @@ class _HomeScreenState extends State<HomeScreen> {
     final hourText = hours.toString().padLeft(2, '0');
     final minuteText = minutes.toString().padLeft(2, '0');
     return '${hourText}h ${minuteText}m';
+  }
+
+  String _homeGreetingName(String displayName) {
+    if (displayName.isEmpty) {
+      return 'Explorer';
+    }
+
+    // Keep the unique guest suffix visible (for example "Guest a1b2c3")
+    // so the name matches leaderboard/profile identity.
+    if (displayName.startsWith('Guest ')) {
+      return displayName;
+    }
+
+    return displayName.split(' ').first;
   }
 }
 

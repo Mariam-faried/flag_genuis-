@@ -342,6 +342,146 @@ exports.submitDailyChallengeAnswer = onCall(async (request) => {
   return response;
 });
 
+exports.syncUserProgressSecure = onCall(async (request) => {
+  const uid = requireAuth(request);
+  const input = toMap(request.data);
+  const identity = readIdentityFromAuth(request.auth);
+  const now = admin.firestore.Timestamp.now();
+
+  return db.runTransaction(async (tx) => {
+    const usersRef = db.collection("users").doc(uid);
+    const leaderboardRef = db.collection("leaderboard").doc(uid);
+
+    const userSnap = await tx.get(usersRef);
+    const leaderboardSnap = await tx.get(leaderboardRef);
+    const userData = userSnap.exists ? userSnap.data() || {} : {};
+    const leaderboardData = leaderboardSnap.exists
+      ? leaderboardSnap.data() || {}
+      : {};
+
+    const incomingGamesPlayed = clampInt(input.gamesPlayed, 0, 1000000);
+    const incomingLifetimeScore = clampInt(input.lifetimeScore, 0, 100000000);
+    const incomingBestScore = clampInt(input.bestScore, 0, 1000);
+    const incomingDailyChallengeStreak = clampInt(
+      input.dailyChallengeStreak,
+      0,
+      10000,
+    );
+    const incomingLatestRoundScore = clampInt(input.latestRoundScore, 0, 1000);
+    const incomingEarnedBadges = normalizeBadgeNames(input.earnedBadgeNames);
+    const incomingLastDailyChallengeDate = parseOptionalIsoDate(
+      input.lastDailyChallengeDateIso,
+    );
+
+    const existingGamesPlayed = clampInt(userData.gamesPlayed, 0, 1000000);
+    const existingBestScore = clampInt(userData.bestScore, 0, 1000);
+    const rawExistingLifetimeScore = clampInt(
+      userData.lifetimeScore,
+      0,
+      100000000,
+    );
+    const existingLeaderboardGamesPlayed = clampInt(
+      leaderboardData.gamesPlayed,
+      0,
+      1000000,
+    );
+    const existingLeaderboardBestScore = clampInt(
+      leaderboardData.bestScore,
+      0,
+      1000,
+    );
+    const existingEarnedBadges = normalizeBadgeNames(userData.earnedBadges);
+    const existingLastDailyChallengeAt =
+      userData.lastDailyChallengeAt instanceof admin.firestore.Timestamp
+        ? userData.lastDailyChallengeAt
+        : null;
+
+    const canonicalGamesPlayed = Math.max(
+      existingGamesPlayed,
+      existingLeaderboardGamesPlayed,
+      incomingGamesPlayed,
+    );
+    const canonicalBestScore = clampInt(
+      Math.max(
+        existingBestScore,
+        existingLeaderboardBestScore,
+        incomingBestScore,
+        incomingLatestRoundScore,
+      ),
+      0,
+      1000,
+    );
+    const existingLifetimeScore = Math.max(
+      rawExistingLifetimeScore,
+      existingBestScore,
+      existingLeaderboardBestScore,
+    );
+    const canonicalLifetimeScore = clampInt(
+      Math.max(incomingLifetimeScore, existingLifetimeScore, canonicalBestScore),
+      0,
+      100000000,
+    );
+    const canonicalDailyChallengeStreak = clampInt(
+      incomingDailyChallengeStreak,
+      0,
+      10000,
+    );
+
+    const earnedBadges = Array.from(
+      new Set([...existingEarnedBadges, ...incomingEarnedBadges]),
+    ).sort();
+
+    const createdAt =
+      userData.createdAt instanceof admin.firestore.Timestamp
+        ? userData.createdAt
+        : now;
+
+    const lastDailyChallengeAt = incomingLastDailyChallengeDate
+      ? admin.firestore.Timestamp.fromDate(incomingLastDailyChallengeDate)
+      : existingLastDailyChallengeAt;
+
+    tx.set(
+      usersRef,
+      {
+        displayName: identity.displayName,
+        email: identity.email,
+        photoUrl: identity.photoUrl,
+        isAnonymous: identity.isAnonymous,
+        gamesPlayed: canonicalGamesPlayed,
+        lifetimeScore: canonicalLifetimeScore,
+        bestScore: canonicalBestScore,
+        dailyChallengeStreak: canonicalDailyChallengeStreak,
+        earnedBadges,
+        lastDailyChallengeAt,
+        updatedAt: now,
+        createdAt,
+      },
+      { merge: true },
+    );
+
+    tx.set(
+      leaderboardRef,
+      {
+        displayName: identity.displayName,
+        photoUrl: identity.photoUrl,
+        bestScore: canonicalBestScore,
+        gamesPlayed: canonicalGamesPlayed,
+        updatedAt: now,
+      },
+      { merge: true },
+    );
+
+    return {
+      status: "ok",
+      gamesPlayed: canonicalGamesPlayed,
+      lifetimeScore: canonicalLifetimeScore,
+      bestScore: canonicalBestScore,
+      dailyChallengeStreak: canonicalDailyChallengeStreak,
+      secureWrite: true,
+    };
+  });
+});
+
 function requireAuth(request) {
   const uid = request.auth?.uid;
   if (!uid) {
@@ -748,6 +888,31 @@ function normalizeAnswer(value) {
   }
   const answer = value.trim();
   return answer.length > 0 ? answer : null;
+}
+
+function normalizeBadgeNames(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return Array.from(
+    new Set(
+      value
+        .map((entry) => String(entry))
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0),
+    ),
+  ).sort();
+}
+
+function parseOptionalIsoDate(value) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return null;
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+  return parsed;
 }
 
 function clampInt(value, min, max) {

@@ -4,6 +4,7 @@ This folder contains callable backend logic for tamper-resistant Daily Challenge
 
 - `startDailyChallenge`: Auth-required callable that creates/loads the server challenge session and returns the current question payload.
 - `submitDailyChallengeAnswer`: Auth-required callable that validates an answer on the server, computes score/lives/streak, advances question state, and finalizes progress + leaderboard on completion.
+- `syncUserProgressSecure`: Auth-required callable that canonicalizes user progress and writes leaderboard entries server-side for hardened rank integrity.
 
 ## Install
 

@@ -10,11 +10,13 @@ import '../models/country_model.dart';
 import '../models/question_model.dart';
 import '../models/quiz_result_model.dart';
 import '../services/api_service.dart';
+import '../services/analytics_service.dart';
 import '../services/auth_service.dart';
 import '../services/daily_challenge_service.dart';
 import '../services/feedback_service.dart';
 import '../services/firestore_service.dart';
 import '../services/question_generator.dart';
+import '../services/remote_config_service.dart';
 
 class QuizProvider extends ChangeNotifier {
   QuizProvider({
@@ -23,12 +25,16 @@ class QuizProvider extends ChangeNotifier {
     required FirestoreService firestoreService,
     required FeedbackService feedbackService,
     required DailyChallengeService dailyChallengeService,
+    required AnalyticsService analyticsService,
+    required RemoteConfigService remoteConfigService,
     QuestionGenerator? questionGenerator,
   }) : _apiService = apiService,
        _authService = authService,
        _firestoreService = firestoreService,
        _feedbackService = feedbackService,
        _dailyChallengeService = dailyChallengeService,
+       _analyticsService = analyticsService,
+       _remoteConfigService = remoteConfigService,
        _questionGenerator = questionGenerator ?? QuestionGenerator();
 
   final ApiService _apiService;
@@ -36,6 +42,8 @@ class QuizProvider extends ChangeNotifier {
   final FirestoreService _firestoreService;
   final FeedbackService _feedbackService;
   final DailyChallengeService _dailyChallengeService;
+  final AnalyticsService _analyticsService;
+  final RemoteConfigService _remoteConfigService;
   final QuestionGenerator _questionGenerator;
 
   final Set<BadgeType> _earnedBadges = <BadgeType>{};
@@ -84,6 +92,10 @@ class QuizProvider extends ChangeNotifier {
   QuestionModel? _pendingDailyNextQuestion;
   String? _dailyChallengeDateKey;
   int _activeRoundQuestionCount = 0;
+  int _questionTimeLimitSeconds = AppConstants.questionTimeLimitSeconds;
+  int _maxClientRoundScore = 1000;
+  bool _secureLeaderboardWriteEnabled = false;
+  bool _requireSecureLeaderboardWrite = false;
 
   bool get isLoadingCountries => _isLoadingCountries;
   String? get loadError => _loadError;
@@ -115,7 +127,11 @@ class QuizProvider extends ChangeNotifier {
 
   int get remainingSeconds => _remainingSeconds;
   double get timerProgress {
-    return _remainingSeconds / AppConstants.questionTimeLimitSeconds;
+    final limit = _activeQuestionTimeLimitSeconds;
+    if (limit <= 0) {
+      return 0;
+    }
+    return _remainingSeconds / limit;
   }
 
   int get score => _score;
@@ -165,6 +181,24 @@ class QuizProvider extends ChangeNotifier {
   Set<BadgeType> get newBadgesThisRound =>
       Set<BadgeType>.unmodifiable(_newBadgesThisRound);
 
+  int get _activeQuestionTimeLimitSeconds =>
+      _questionTimeLimitSeconds.clamp(6, 20).toInt();
+
+  Future<void> initializeRuntimeServices({bool forceRefresh = false}) async {
+    await _remoteConfigService.initialize(forceRefresh: forceRefresh);
+    _questionTimeLimitSeconds = _remoteConfigService.questionTimeLimitSeconds;
+    _maxClientRoundScore = _remoteConfigService.maxClientRoundScore;
+    _secureLeaderboardWriteEnabled =
+        _remoteConfigService.secureLeaderboardWriteEnabled;
+    _requireSecureLeaderboardWrite =
+        _remoteConfigService.secureLeaderboardWriteRequired;
+
+    await _analyticsService.setCollectionEnabled(
+      _remoteConfigService.analyticsEnabled,
+    );
+    await _analyticsService.setUserContext(user: _authService.currentUser);
+  }
+
   Future<void> initializeCountries() async {
     if (_isLoadingCountries || _countries.isNotEmpty) {
       return;
@@ -192,6 +226,7 @@ class QuizProvider extends ChangeNotifier {
 
   Future<void> hydrateProgressFromCloud() async {
     final user = _authService.currentUser;
+    unawaited(_analyticsService.setUserContext(user: user));
     if (user == null) {
       _resetPersistentProgress(notify: true);
       return;
@@ -237,11 +272,18 @@ class QuizProvider extends ChangeNotifier {
     _isDailyChallengeActive = false;
     _isUsingLocalDailyChallengeFallback = false;
     _dailyChallengeNotice = null;
-    _startRoundInternal(
+    final started = _startRoundInternal(
       mode: mode,
       difficulty: difficulty,
       questionGenerator: _questionGenerator,
     );
+    if (started) {
+      _logRoundStarted(
+        mode: mode,
+        difficulty: difficulty,
+        isDailyChallenge: false,
+      );
+    }
   }
 
   Future<bool> startDailyChallengeRound() async {
@@ -324,6 +366,11 @@ class QuizProvider extends ChangeNotifier {
       _pendingDailyNextQuestion = null;
 
       _startTimer();
+      _logRoundStarted(
+        mode: mode,
+        difficulty: difficulty,
+        isDailyChallenge: true,
+      );
       notifyListeners();
       return true;
     } catch (error) {
@@ -332,6 +379,11 @@ class QuizProvider extends ChangeNotifier {
         _isUsingLocalDailyChallengeFallback = true;
         _dailyChallengeNotice =
             'Cloud daily challenge unavailable. Running local demo challenge.';
+        _logRoundStarted(
+          mode: _selectedMode,
+          difficulty: _selectedDifficulty,
+          isDailyChallenge: true,
+        );
         notifyListeners();
         return true;
       }
@@ -410,16 +462,17 @@ class QuizProvider extends ChangeNotifier {
     final question = currentQuestion!;
     final isCorrect = answer != null && question.isCorrect(answer);
     _answerWasCorrect = isCorrect;
+    final elapsedSeconds = (_activeQuestionTimeLimitSeconds - _remainingSeconds)
+        .clamp(0, _activeQuestionTimeLimitSeconds)
+        .toInt();
+    final timedOut = answer == null;
 
     if (isCorrect) {
       _correctAnswers++;
       _streak++;
       _longestStreak = max(_longestStreak, _streak);
 
-      final elapsed = AppConstants.questionTimeLimitSeconds - _remainingSeconds;
-      final basePoints = QuizRules.pointsForElapsedSeconds(
-        elapsed.clamp(0, AppConstants.questionTimeLimitSeconds).toInt(),
-      );
+      final basePoints = QuizRules.pointsForElapsedSeconds(elapsedSeconds);
       _lastAnswerPoints = QuizRules.applyStreakMultiplier(basePoints, _streak);
       _score += _lastAnswerPoints;
       unawaited(_feedbackService.playCorrect());
@@ -430,6 +483,13 @@ class QuizProvider extends ChangeNotifier {
       _lives = max(0, _lives - 1);
       unawaited(_feedbackService.playWrong());
     }
+
+    _logAnswerSubmitted(
+      isCorrect: isCorrect,
+      timedOut: timedOut,
+      elapsedSeconds: elapsedSeconds,
+      selectedAnswer: answer,
+    );
 
     if (_lives == 0 || _currentQuestionIndex >= _questions.length - 1) {
       _completeRound();
@@ -475,6 +535,12 @@ class QuizProvider extends ChangeNotifier {
       }
       _answerWasCorrect = answerResult['isCorrect'] == true;
       _lastAnswerPoints = (answerResult['points'] as num?)?.toInt() ?? 0;
+      final elapsedSeconds =
+          (answerResult['elapsedSeconds'] as num?)?.toInt() ??
+          _activeQuestionTimeLimitSeconds;
+      final timedOut =
+          _selectedAnswer == null ||
+          elapsedSeconds >= _activeQuestionTimeLimitSeconds;
 
       _score = (payload['score'] as num?)?.toInt() ?? _score;
       _lives = (payload['lives'] as num?)?.toInt() ?? _lives;
@@ -491,6 +557,13 @@ class QuizProvider extends ChangeNotifier {
       } else {
         unawaited(_feedbackService.playWrong());
       }
+
+      _logAnswerSubmitted(
+        isCorrect: _answerWasCorrect,
+        timedOut: timedOut,
+        elapsedSeconds: elapsedSeconds,
+        selectedAnswer: _selectedAnswer,
+      );
 
       final roundOver = payload['roundOver'] == true;
       _roundCompleted = roundOver;
@@ -549,6 +622,7 @@ class QuizProvider extends ChangeNotifier {
 
       _dailyChallengeDateKey = null;
       unawaited(_feedbackService.playRoundComplete());
+      _logRoundCompleted(wasDailyChallenge: true);
       notifyListeners();
       return _answerWasCorrect;
     } catch (error) {
@@ -604,6 +678,22 @@ class QuizProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void abandonRound() {
+    _timer?.cancel();
+    _timer = null;
+
+    _roundCompleted = false;
+    _isDailyChallengeActive = false;
+    _isUsingLocalDailyChallengeFallback = false;
+    _dailyChallengeNotice = null;
+    _dailyChallengeDateKey = null;
+    _pendingDailyNextQuestion = null;
+    _loadError = null;
+
+    _resetRoundState();
+    notifyListeners();
+  }
+
   bool markDailyChallengeCompleted() {
     if (!_applyDailyChallengeCompletion()) {
       return false;
@@ -640,7 +730,7 @@ class QuizProvider extends ChangeNotifier {
     _questions = <QuestionModel>[];
     _activeRoundQuestionCount = 0;
     _currentQuestionIndex = 0;
-    _remainingSeconds = AppConstants.questionTimeLimitSeconds;
+    _remainingSeconds = _activeQuestionTimeLimitSeconds;
     _score = 0;
     _lives = AppConstants.maxLives;
     _streak = 0;
@@ -656,7 +746,7 @@ class QuizProvider extends ChangeNotifier {
 
   void _startTimer() {
     _timer?.cancel();
-    _remainingSeconds = AppConstants.questionTimeLimitSeconds;
+    _remainingSeconds = _activeQuestionTimeLimitSeconds;
 
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_roundCompleted || _hasAnsweredCurrent) {
@@ -683,9 +773,13 @@ class QuizProvider extends ChangeNotifier {
 
     _timer?.cancel();
     _roundCompleted = true;
-    final maxAllowedRoundScore = QuizRules.maxPossibleRoundScore(
-      questionCount: _questionCountForDifficulty(_selectedDifficulty),
+    final wasDailyChallenge = _isDailyChallengeActive;
+    final theoreticalRoundCap = QuizRules.maxPossibleRoundScore(
+      questionCount: _activeRoundQuestionCount > 0
+          ? _activeRoundQuestionCount
+          : _questionCountForDifficulty(_selectedDifficulty),
     );
+    final maxAllowedRoundScore = min(theoreticalRoundCap, _maxClientRoundScore);
     final normalizedRoundScore = _score.clamp(0, maxAllowedRoundScore).toInt();
     if (normalizedRoundScore != _score) {
       _syncError =
@@ -721,6 +815,7 @@ class QuizProvider extends ChangeNotifier {
     );
 
     unawaited(_feedbackService.playRoundComplete());
+    _logRoundCompleted(wasDailyChallenge: wasDailyChallenge);
     unawaited(_syncProgressToCloud());
   }
 
@@ -775,7 +870,7 @@ class QuizProvider extends ChangeNotifier {
     _sanitizePersistentProgressForSync();
 
     try {
-      await _firestoreService.upsertUserProgress(
+      final syncResult = await _firestoreService.upsertUserProgress(
         user: user,
         gamesPlayed: _gamesPlayed,
         lifetimeScore: _lifetimeScore,
@@ -783,20 +878,26 @@ class QuizProvider extends ChangeNotifier {
         dailyChallengeStreak: _dailyChallengeStreak,
         earnedBadgeNames: _earnedBadges.map((badge) => badge.name).toSet(),
         lastDailyChallengeDate: _lastDailyChallengeDate,
+        latestRoundScore: _score,
+        secureWriteEnabled: _secureLeaderboardWriteEnabled,
+        requireSecureWrite: _requireSecureLeaderboardWrite,
       );
+      _syncError = null;
+      _logProgressSync(success: true, syncResult: syncResult);
 
       if (refreshRank) {
         await _refreshCurrentUserRank(notify: true);
       }
     } catch (error) {
       _syncError = error.toString().replaceFirst('Exception: ', '');
+      _logProgressSync(success: false, error: _syncError);
       notifyListeners();
     }
   }
 
   void _sanitizePersistentProgressForSync() {
     _gamesPlayed = _gamesPlayed.clamp(0, 1000000).toInt();
-    _bestScore = _bestScore.clamp(0, 1000).toInt();
+    _bestScore = _bestScore.clamp(0, min(_maxClientRoundScore, 1000)).toInt();
     _lifetimeScore = _lifetimeScore.clamp(0, 100000000).toInt();
     if (_lifetimeScore < _bestScore) {
       _lifetimeScore = _bestScore;
@@ -1024,6 +1125,91 @@ class QuizProvider extends ChangeNotifier {
     return first.year == second.year &&
         first.month == second.month &&
         first.day == second.day;
+  }
+
+  void _logRoundStarted({
+    required QuizMode mode,
+    required QuizDifficulty difficulty,
+    required bool isDailyChallenge,
+  }) {
+    unawaited(
+      _analyticsService.logEvent(
+        name: 'quiz_round_started',
+        parameters: {
+          'mode': mode.name,
+          'difficulty': difficulty.name,
+          'is_daily_challenge': isDailyChallenge,
+          'question_count': _activeRoundQuestionCount,
+          'time_limit_seconds': _activeQuestionTimeLimitSeconds,
+        },
+      ),
+    );
+  }
+
+  void _logAnswerSubmitted({
+    required bool isCorrect,
+    required bool timedOut,
+    required int elapsedSeconds,
+    required String? selectedAnswer,
+  }) {
+    unawaited(
+      _analyticsService.logEvent(
+        name: 'quiz_answer_submitted',
+        parameters: {
+          'mode': _selectedMode.name,
+          'difficulty': _selectedDifficulty.name,
+          'question_index': _currentQuestionIndex + 1,
+          'question_total': totalQuestions,
+          'is_correct': isCorrect,
+          'timed_out': timedOut,
+          'elapsed_seconds': elapsedSeconds,
+          'remaining_seconds': _remainingSeconds,
+          'streak': _streak,
+          'score': _score,
+          'lives': _lives,
+          'selected_answer_empty': selectedAnswer == null,
+        },
+      ),
+    );
+  }
+
+  void _logRoundCompleted({required bool wasDailyChallenge}) {
+    unawaited(
+      _analyticsService.logEvent(
+        name: 'quiz_round_completed',
+        parameters: {
+          'mode': _selectedMode.name,
+          'difficulty': _selectedDifficulty.name,
+          'is_daily_challenge': wasDailyChallenge,
+          'score': _score,
+          'correct_answers': _correctAnswers,
+          'wrong_answers': _wrongAnswers,
+          'longest_streak': _longestStreak,
+          'games_played_total': _gamesPlayed,
+        },
+      ),
+    );
+  }
+
+  void _logProgressSync({
+    required bool success,
+    FirestoreProgressSyncResult? syncResult,
+    String? error,
+  }) {
+    unawaited(
+      _analyticsService.logEvent(
+        name: success
+            ? 'quiz_progress_sync_success'
+            : 'quiz_progress_sync_error',
+        parameters: {
+          'secure_write_enabled': _secureLeaderboardWriteEnabled,
+          'secure_write_required': _requireSecureLeaderboardWrite,
+          'used_secure_write': syncResult?.usedSecureWrite ?? false,
+          'used_client_fallback': syncResult?.usedClientFallback ?? false,
+          'error': error ?? '',
+        },
+      ),
+    );
   }
 
   @override

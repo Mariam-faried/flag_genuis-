@@ -181,7 +181,7 @@ test('leaderboard reads: authenticated users can read public leaderboard query',
   await assertSucceeds(getDocs(leaderboardQuery));
 });
 
-test('leaderboard/{uid}: owner can create and update own leaderboard entry', async () => {
+test('leaderboard/{uid}: clients can create own leaderboard entry with valid payload', async () => {
   const aliceDb = testEnv.authenticatedContext('alice').firestore();
   const aliceLeaderboardRef = doc(aliceDb, 'leaderboard/alice');
 
@@ -195,21 +195,27 @@ test('leaderboard/{uid}: owner can create and update own leaderboard entry', asy
       }),
     ),
   );
+});
+
+test('leaderboard/{uid}: clients can update own leaderboard entry monotonically', async () => {
+  await seedData();
+  const aliceDb = testEnv.authenticatedContext('alice').firestore();
+  const aliceLeaderboardRef = doc(aliceDb, 'leaderboard/alice');
 
   await assertSucceeds(
     setDoc(
       aliceLeaderboardRef,
       validLeaderboardDoc({
         displayName: 'Alice',
-        gamesPlayed: 2,
-        bestScore: 180,
+        gamesPlayed: 11,
+        bestScore: 260,
       }),
       { merge: true },
     ),
   );
 });
 
-test('leaderboard/{uid}: owner cannot decrease bestScore or gamesPlayed', async () => {
+test('leaderboard/{uid}: clients cannot decrease bestScore or gamesPlayed', async () => {
   await seedData();
   const aliceDb = testEnv.authenticatedContext('alice').firestore();
   const aliceLeaderboardRef = doc(aliceDb, 'leaderboard/alice');
@@ -224,6 +230,22 @@ test('leaderboard/{uid}: owner cannot decrease bestScore or gamesPlayed', async 
       }),
       { merge: true },
     ),
+  );
+});
+
+test('leaderboard/{uid}: clients cannot write unexpected fields', async () => {
+  const aliceDb = testEnv.authenticatedContext('alice').firestore();
+  const aliceLeaderboardRef = doc(aliceDb, 'leaderboard/alice');
+
+  await assertFails(
+    setDoc(aliceLeaderboardRef, {
+      ...validLeaderboardDoc({
+        displayName: 'Alice',
+        gamesPlayed: 1,
+        bestScore: 120,
+      }),
+      hacked: true,
+    }),
   );
 });
 

@@ -105,9 +105,10 @@ class _SplashScreenState extends State<SplashScreen>
     final quizProvider = context.read<QuizProvider>();
     final authProvider = context.read<AuthProvider>();
 
+    await authProvider.waitUntilInitialized();
     await Future.wait<void>([
+      quizProvider.initializeRuntimeServices(),
       quizProvider.initializeCountries(),
-      authProvider.waitUntilInitialized(),
     ]);
 
     if (quizProvider.loadError != null) {

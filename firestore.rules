@@ -77,48 +77,6 @@ service cloud.firestore {
         && hasValidUserTimestampFields();
     }
 
-    function hasOnlyAllowedLeaderboardFields() {
-      return request.resource.data.keys().hasOnly([
-        'displayName',
-        'photoUrl',
-        'bestScore',
-        'gamesPlayed',
-        'updatedAt',
-      ]);
-    }
-
-    function hasValidLeaderboardFields() {
-      return request.resource.data.displayName is string
-        && request.resource.data.displayName.size() > 0
-        && request.resource.data.displayName.size() <= 80
-        && (
-          !('photoUrl' in request.resource.data)
-          || request.resource.data.photoUrl == null
-          || request.resource.data.photoUrl is string
-        )
-        && request.resource.data.bestScore is int
-        && request.resource.data.bestScore >= 0
-        && request.resource.data.bestScore <= 1000
-        && request.resource.data.gamesPlayed is int
-        && request.resource.data.gamesPlayed >= 0
-        && request.resource.data.gamesPlayed <= 1000000
-        && request.resource.data.updatedAt is timestamp;
-    }
-
-    function isMonotonicLeaderboardUpdate(entryId) {
-      return !exists(/databases/$(database)/documents/leaderboard/$(entryId))
-        || (
-          request.resource.data.bestScore >= resource.data.bestScore
-          && request.resource.data.gamesPlayed >= resource.data.gamesPlayed
-        );
-    }
-
-    function isValidLeaderboardDocument(entryId) {
-      return hasOnlyAllowedLeaderboardFields()
-        && hasValidLeaderboardFields()
-        && isMonotonicLeaderboardUpdate(entryId);
-    }
-
     match /users/{uid} {
       allow get: if isOwner(uid);
       allow list: if false;
@@ -127,9 +85,43 @@ service cloud.firestore {
     }
 
     match /leaderboard/{entryId} {
+      function hasOnlyAllowedLeaderboardFields() {
+        return request.resource.data.keys().hasOnly([
+          'displayName',
+          'photoUrl',
+          'bestScore',
+          'gamesPlayed',
+          'updatedAt',
+        ]);
+      }
+
+      function hasValidLeaderboardFields() {
+        return request.resource.data.displayName is string
+          && request.resource.data.displayName.size() > 0
+          && request.resource.data.displayName.size() <= 80
+          && (
+            !('photoUrl' in request.resource.data)
+            || request.resource.data.photoUrl == null
+            || request.resource.data.photoUrl is string
+          )
+          && request.resource.data.bestScore is int
+          && request.resource.data.bestScore >= 0
+          && request.resource.data.bestScore <= 1000
+          && request.resource.data.gamesPlayed is int
+          && request.resource.data.gamesPlayed >= 0
+          && request.resource.data.gamesPlayed <= 1000000
+          && request.resource.data.updatedAt is timestamp;
+      }
+
       allow get, list: if isSignedIn();
-      allow create, update: if isOwner(entryId)
-        && isValidLeaderboardDocument(entryId);
+      allow create: if isOwner(entryId)
+        && hasOnlyAllowedLeaderboardFields()
+        && hasValidLeaderboardFields();
+      allow update: if isOwner(entryId)
+        && hasOnlyAllowedLeaderboardFields()
+        && hasValidLeaderboardFields()
+        && request.resource.data.bestScore >= resource.data.bestScore
+        && request.resource.data.gamesPlayed >= resource.data.gamesPlayed;
       allow delete: if false;
     }
 

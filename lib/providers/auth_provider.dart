@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
+import '../services/analytics_service.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 
@@ -10,8 +11,10 @@ class AuthProvider extends ChangeNotifier {
   AuthProvider({
     required AuthService authService,
     required FirestoreService firestoreService,
+    required AnalyticsService analyticsService,
   }) : _authService = authService,
-       _firestoreService = firestoreService {
+       _firestoreService = firestoreService,
+       _analyticsService = analyticsService {
     _authSubscription = _authService.authStateChanges().listen(
       (user) {
         unawaited(_handleAuthStateChanged(user));
@@ -24,6 +27,7 @@ class AuthProvider extends ChangeNotifier {
 
   final AuthService _authService;
   final FirestoreService _firestoreService;
+  final AnalyticsService _analyticsService;
 
   StreamSubscription<User?>? _authSubscription;
   final Completer<void> _initCompleter = Completer<void>();
@@ -53,7 +57,18 @@ class AuthProvider extends ChangeNotifier {
       return currentUser.email!.trim().split('@').first;
     }
 
-    return currentUser.isAnonymous ? 'Guest' : 'Challenger';
+    if (currentUser.isAnonymous) {
+      final safeUid = currentUser.uid.trim();
+      if (safeUid.length >= 6) {
+        return 'Guest ${safeUid.substring(0, 6)}';
+      }
+      if (safeUid.isNotEmpty) {
+        return 'Guest $safeUid';
+      }
+      return 'Guest';
+    }
+
+    return 'Challenger';
   }
 
   Future<void> waitUntilInitialized() {
@@ -124,6 +139,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> _handleAuthStateChanged(User? user) async {
     _user = user;
     _errorMessage = null;
+    unawaited(_analyticsService.setUserContext(user: user));
 
     if (user != null) {
       try {
@@ -155,9 +171,21 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       await action();
+      unawaited(
+        _analyticsService.logEvent(
+          name: 'auth_action_success',
+          parameters: {'is_signed_in': _authService.currentUser != null},
+        ),
+      );
       return true;
     } catch (error) {
       _errorMessage = _readableError(error);
+      unawaited(
+        _analyticsService.logEvent(
+          name: 'auth_action_error',
+          parameters: {'error': _errorMessage ?? 'unknown'},
+        ),
+      );
       return false;
     } finally {
       _isBusy = false;

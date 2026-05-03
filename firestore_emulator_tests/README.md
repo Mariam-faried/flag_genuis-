@@ -5,8 +5,9 @@ This folder contains Firestore Security Rules tests for Flag Genius.
 ## What Is Covered
 - `users/{uid}` owner-only read/write for private profile progress.
 - `users` collection listing blocked for client apps.
-- `leaderboard/{uid}` authenticated read access with owner-only writes.
-- `leaderboard/{uid}` monotonic updates (no score/games regression).
+- `leaderboard/{uid}` authenticated read access.
+- `leaderboard/{uid}` owner-only client writes with strict field validation.
+- Monotonic leaderboard updates (scores and games cannot be decreased).
 
 ## Install
 ```powershell

@@ -5,7 +5,6 @@ class AppRoutes {
   static const String home = '/home';
   static const String modeSelect = '/mode-select';
   static const String quiz = '/quiz';
-  static const String result = '/result';
   static const String summary = '/summary';
   static const String leaderboard = '/leaderboard';
   static const String profile = '/profile';

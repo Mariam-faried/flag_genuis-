@@ -5,6 +5,7 @@ class LeaderboardEntryModel {
     required this.bestScore,
     required this.gamesPlayed,
     this.photoUrl,
+    this.updatedAt,
   });
 
   final String uid;
@@ -12,4 +13,5 @@ class LeaderboardEntryModel {
   final int bestScore;
   final int gamesPlayed;
   final String? photoUrl;
+  final DateTime? updatedAt;
 }
